@@ -113,7 +113,7 @@ def check_postcode(pois, lat, lon, threshold_min=25):
     for cat in CATEGORIES:
         cand, crow = nearest_candidates(pois[cat], lat, lon)
         if crow.min() > MAX_CROW_KM:
-            result[cat] = {"within": False, "minutes": None, "nearest_name": ""}
+            result[cat] = {"within": False, "minutes": None, "nearest_name": "none within 45 km"}
             continue
         for _, row in cand.iterrows():
             dest_coords.append((row["lat"], row["lon"]))
@@ -159,6 +159,7 @@ def run_batch(postcodes, threshold_min=25, progress_cb=None, pois=None):
             for cat in CATEGORIES:
                 row[CATEGORY_LABELS[cat]] = ""
                 row[f"{CATEGORY_LABELS[cat]} (mins)"] = None
+                row[f"{CATEGORY_LABELS[cat]} nearest"] = ""
             row["all_within"] = ""
         else:
             res = check_postcode(pois, c[0], c[1], threshold_min)
@@ -168,6 +169,7 @@ def run_batch(postcodes, threshold_min=25, progress_cb=None, pois=None):
                 w = res[cat]["within"]
                 row[CATEGORY_LABELS[cat]] = "Yes" if w else ("No" if w is False else "?")
                 row[f"{CATEGORY_LABELS[cat]} (mins)"] = res[cat]["minutes"]
+                row[f"{CATEGORY_LABELS[cat]} nearest"] = res[cat]["nearest_name"]
                 verdicts.append(w)
             row["all_within"] = "Yes" if all(v is True for v in verdicts) else "No"
             time.sleep(0.5)  # be polite to the public OSRM server

@@ -91,7 +91,21 @@ if st.button("Run check", type="primary", disabled=not postcodes):
         hide_index=True,
     )
 
-    with st.expander("Drive times (minutes)"):
+    st.subheader("Nearest site per category")
+    nearest = pd.DataFrame({"postcode": df["postcode"]})
+    for c in checker.CATEGORIES:
+        label = checker.CATEGORY_LABELS[c]
+
+        def fmt(r, label=label):
+            name, mins = r[f"{label} nearest"], r[f"{label} (mins)"]
+            if not name:
+                return ""
+            return f"{name} ({mins} min)" if pd.notna(mins) else name
+
+        nearest[label] = df.apply(fmt, axis=1)
+    st.dataframe(nearest, use_container_width=True, hide_index=True)
+
+    with st.expander("Full data (all columns)"):
         st.dataframe(df, use_container_width=True, hide_index=True)
 
     buf = io.StringIO()
