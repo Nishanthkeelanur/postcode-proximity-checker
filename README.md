@@ -1,5 +1,8 @@
 # Service Proximity Checker (MVP)
 
+https://postcode-proximity-checker-123.streamlit.app/
+
+
 Internal tool for bulk-checking UK postcodes: for each postcode, is a **GP,
 hospital, primary school, secondary school and supermarket** each within a
 drive-time threshold (default **25 minutes**)? Output is a Yes/No per category
