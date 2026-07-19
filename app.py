@@ -75,10 +75,11 @@ if st.button("Run check", type="primary", disabled=not postcodes):
     st.metric(f"All services within {threshold} min", f"{n_ok} / {len(df)}")
 
     def colour(v):
+        # translucent tints read well on both light and dark themes
         if v == "Yes":
-            return "background-color: #d4edda"
+            return "background-color: rgba(33, 195, 84, 0.22)"
         if v == "No":
-            return "background-color: #f8d7da"
+            return "background-color: rgba(255, 75, 75, 0.22)"
         return ""
 
     show_cols = ["postcode", "status", "all_within"] + [
