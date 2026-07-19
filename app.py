@@ -97,8 +97,10 @@ if st.button("Run check", type="primary", disabled=not postcodes):
         label = checker.CATEGORY_LABELS[c]
 
         def fmt(r, label=label):
-            name, mins = r[f"{label} nearest"], r[f"{label} (mins)"]
-            if not name:
+            # .get so a half-reloaded deployment (new UI, cached old checker
+            # module without these columns) degrades gracefully instead of crashing
+            name, mins = r.get(f"{label} nearest", ""), r.get(f"{label} (mins)")
+            if not name or pd.isna(name):
                 return ""
             return f"{name} ({mins} min)" if pd.notna(mins) else name
 
