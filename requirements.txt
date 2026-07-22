@@ -2,3 +2,5 @@ pandas
 requests
 streamlit
 bng_latlon
+openpyxl
+odfpy

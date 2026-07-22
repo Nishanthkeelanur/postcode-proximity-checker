@@ -1,13 +1,19 @@
 """Build the local POI cache (data/pois.csv) from open datasets.
 
 Sources:
-  - Schools (primary/secondary): DfE Get Information about Schools (GIAS)
-  - GP practices: NHS ODS epraccur (postcodes geocoded via postcodes.io)
-  - Hospitals & supermarkets: OpenStreetMap via Overpass API
+  - Schools England: DfE Get Information about Schools (GIAS)
+  - Schools Scotland: Scottish Government school contact details (xlsx)
+  - Schools Wales: Welsh Government address list of schools (ods)
+  - GP practices England & Wales: NHS ODS epraccur
+  - GP practices Scotland: Public Health Scotland open data (CKAN)
+  - Hospitals & supermarkets (UK-wide): OpenStreetMap via Overpass API
+  (Northern Ireland GP/school registers not yet wired in.)
 
 Run:  py fetch_data.py
 Output columns: category,name,lat,lon
 """
+
+import re
 
 import csv
 import io
@@ -113,6 +119,88 @@ def fetch_gp_practices():
     return rows
 
 
+def _school_rows_from_postcodes(records, tag):
+    """records: list of (name, postcode, is_primary, is_secondary) -> POI rows."""
+    coords = geocode_postcodes_bulk({pc for _, pc, _, _ in records if pc})
+    rows = []
+    for name, pc, is_prim, is_sec in records:
+        if pc not in coords:
+            continue
+        lat, lon = coords[pc]
+        if is_prim:
+            rows.append(("primary_school", name, lat, lon))
+        if is_sec:
+            rows.append(("secondary_school", name, lat, lon))
+    print(f"{tag}: {len(rows)} school rows from {len(records)} schools")
+    return rows
+
+
+def fetch_scotland_gps():
+    """Public Health Scotland GP practice contact details (CKAN, quarterly CSV)."""
+    api = ("https://www.opendata.nhs.scot/api/3/action/package_show"
+           "?id=gp-practice-contact-details-and-list-sizes")
+    r = SESSION.get(api, timeout=120)
+    r.raise_for_status()
+    resources = [x for x in r.json()["result"]["resources"] if x["format"].upper() == "CSV"]
+    url = resources[0]["url"]  # newest first
+    print(f"Scotland GPs: downloading {url}")
+    df = pd.read_csv(url)
+    df = df.dropna(subset=["Postcode"])
+    coords = geocode_postcodes_bulk(set(df["Postcode"].str.strip().str.upper()))
+    rows = []
+    for _, r_ in df.iterrows():
+        pc = str(r_["Postcode"]).strip().upper()
+        if pc in coords:
+            lat, lon = coords[pc]
+            rows.append(("gp", str(r_["GPPracticeName"]), lat, lon))
+    print(f"Scotland GPs: {len(rows)} geocoded of {len(df)}")
+    return rows
+
+
+def fetch_scotland_schools():
+    """Scottish Government school contact details: 'Open Schools' sheet of a dated xlsx."""
+    page = SESSION.get("https://www.gov.scot/publications/school-contact-details/", timeout=120)
+    page.raise_for_status()
+    m = re.search(r'href="(/binaries/[^"]+\.xlsx)"', page.text)
+    if not m:
+        raise RuntimeError("Scotland schools: no .xlsx link found on publication page")
+    url = "https://www.gov.scot" + m.group(1)
+    print(f"Scotland schools: downloading {url}")
+    r = SESSION.get(url, timeout=300)
+    r.raise_for_status()
+    df = pd.read_excel(io.BytesIO(r.content), sheet_name="Open Schools", header=5)
+    df = df.dropna(subset=["Post Code"])
+    records = [
+        (str(r_["School Name"]), str(r_["Post Code"]).strip().upper(),
+         r_["Primary Department"] == "Yes", r_["Secondary Department"] == "Yes")
+        for _, r_ in df.iterrows()
+    ]
+    return _school_rows_from_postcodes(records, "Scotland schools")
+
+
+def fetch_wales_schools():
+    """Welsh Government address list of schools: 'Maintained' sheet of an ods file."""
+    page = SESSION.get("https://www.gov.wales/address-list-schools", timeout=120)
+    page.raise_for_status()
+    m = re.search(r'href="((?:https://www\.gov\.wales)?/sites/default/files/[^"]+\.ods)"', page.text)
+    if not m:
+        raise RuntimeError("Wales schools: no .ods link found on publication page")
+    url = m.group(1)
+    if url.startswith("/"):
+        url = "https://www.gov.wales" + url
+    print(f"Wales schools: downloading {url}")
+    r = SESSION.get(url, timeout=300)
+    r.raise_for_status()
+    df = pd.read_excel(io.BytesIO(r.content), engine="odf", sheet_name="Maintained")
+    df = df.dropna(subset=["Postcode"])
+    records = [
+        (str(r_["School Name"]), str(r_["Postcode"]).strip().upper(),
+         r_["Sector"] in ("Primary", "Middle"), r_["Sector"] in ("Secondary", "Middle"))
+        for _, r_ in df.iterrows()
+    ]
+    return _school_rows_from_postcodes(records, "Wales schools")
+
+
 def fetch_overpass(category, osm_filter):
     """Fetch POIs for Great Britain from Overpass."""
     query = f"""
@@ -150,7 +238,10 @@ def fetch_overpass(category, osm_filter):
 def main():
     all_rows = []
     all_rows += fetch_gias_schools()
+    all_rows += fetch_scotland_schools()
+    all_rows += fetch_wales_schools()
     all_rows += fetch_gp_practices()
+    all_rows += fetch_scotland_gps()
     all_rows += fetch_overpass("hospital", '"amenity"="hospital"')
     all_rows += fetch_overpass("supermarket", '"shop"="supermarket"')
 

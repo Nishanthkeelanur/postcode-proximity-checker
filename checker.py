@@ -57,7 +57,7 @@ def load_pois():
 
 
 def geocode(postcodes):
-    """Bulk geocode via postcodes.io. Returns {input_postcode: (lat, lon) or None}."""
+    """Bulk geocode via postcodes.io. Returns {input_postcode: (lat, lon, country) or None}."""
     out = {}
     pcs = [str(p).strip() for p in postcodes if str(p).strip()]
     for i in range(0, len(pcs), 100):
@@ -74,7 +74,7 @@ def geocode(postcodes):
         for item in r.json()["result"]:
             res = item.get("result")
             if res and res.get("latitude") is not None:
-                out[item["query"]] = (res["latitude"], res["longitude"])
+                out[item["query"]] = (res["latitude"], res["longitude"], res.get("country", ""))
             else:
                 out[item["query"]] = None
     return out
@@ -153,7 +153,7 @@ def run_batch(postcodes, threshold_min=25, progress_cb=None, pois=None):
     rows = []
     for i, pc in enumerate([str(p).strip() for p in postcodes if str(p).strip()]):
         c = coords.get(pc)
-        row = {"postcode": pc}
+        row = {"postcode": pc, "country": c[2] if c else ""}
         if c is None:
             row["status"] = "invalid postcode"
             for cat in CATEGORIES:

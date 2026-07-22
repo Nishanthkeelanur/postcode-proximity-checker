@@ -60,14 +60,17 @@ all 39k POIs, only ~25 candidates per postcode.
 
 | Category | Source | Notes |
 |---|---|---|
-| Primary schools | DfE **Get Information about Schools** (GIAS) daily CSV | Open establishments; phases Primary, Middle-deemed-primary, All-through. Easting/Northing converted to lat/lon (`bng_latlon`). |
-| Secondary schools | Same GIAS file | Phases Secondary, Middle-deemed-secondary, All-through. |
-| GP practices | NHS **ODS Data Search & Export** `epraccur` report | The legacy `files.digital.nhs.uk/.../epraccur.zip` is retired (403). New endpoint: `https://www.odsdatasearchandexport.nhs.uk/api/getReport?report=epraccur`. Filtered to status `ACTIVE` + role `RO76` (GP practice) ⇒ ~6.5k practices. Postcodes geocoded via postcodes.io. |
-| Hospitals | OpenStreetMap via Overpass (`amenity=hospital`) | Any hospital site, not A&E specifically. |
-| Supermarkets | OpenStreetMap via Overpass (`shop=supermarket`) | Geolytix Retail Points is a cleaner alternative if OSM quality becomes an issue. |
+| Schools (England) | DfE **Get Information about Schools** (GIAS) daily CSV | Open establishments; phase columns give primary/secondary (Middle/All-through count for both). Easting/Northing converted to lat/lon (`bng_latlon`). |
+| Schools (Scotland) | **Scottish Government** school contact details (xlsx, "Open Schools" sheet) | `Primary Department` / `Secondary Department` Yes/No flags; the dated xlsx link is scraped off the publication page. Postcodes geocoded. |
+| Schools (Wales) | **Welsh Government** address list of schools (ods, "Maintained" sheet) | `Sector` Primary/Secondary (Middle counts for both); the dated ods link is scraped off the publication page. Postcodes geocoded. |
+| GP practices (England & Wales) | NHS **ODS Data Search & Export** `epraccur` report | The legacy `files.digital.nhs.uk/.../epraccur.zip` is retired (403). New endpoint: `https://www.odsdatasearchandexport.nhs.uk/api/getReport?report=epraccur`. Filtered to status `ACTIVE` + role `RO76` (GP practice). Postcodes geocoded via postcodes.io. |
+| GP practices (Scotland) | **Public Health Scotland** open data (CKAN) | Latest quarterly CSV resolved dynamically via the CKAN `package_show` API. Postcodes geocoded. |
+| Hospitals (UK-wide) | OpenStreetMap via Overpass (`amenity=hospital`) | Any hospital site, not A&E specifically. |
+| Supermarkets (UK-wide) | OpenStreetMap via Overpass (`shop=supermarket`) | Geolytix Retail Points is a cleaner alternative if OSM quality becomes an issue. |
 
-Cache counts at last build (Jul 2026): 16,831 primary schools, 3,409 secondary
-schools, 6,568 GPs, 1,829 hospitals, 10,390 supermarkets = **39,027 POIs**.
+Cache counts at last build (Jul 2026): 19,999 primary schools, 3,964 secondary
+schools, 7,445 GPs, 1,833 hospitals, 10,389 supermarkets = **43,630 POIs**.
+Results include a `country` column (from postcodes.io).
 
 ## Routing
 
@@ -103,10 +106,10 @@ Tested end-to-end via CLI and the web UI:
 
 ## Known limitations
 
-- **England-only GP and school registers.** GIAS and ODS epraccur cover
-  England; Scottish/Welsh/NI postcodes will under-report GPs and schools
-  (hospitals and supermarkets via OSM are UK-wide). Equivalent registers exist
-  for the devolved nations if needed.
+- **Northern Ireland GP and school registers not yet included.** England,
+  Wales and Scotland have full coverage; NI postcodes will under-report GPs
+  and schools (hospitals and supermarkets via OSM are UK-wide). The OpenDataNI
+  GP list and DE school censuses are the identified sources.
 - **"Hospital" is broad** — any OSM `amenity=hospital` site, including
   community/specialist hospitals. Agree the definition (e.g. A&E only) with
   stakeholders; NHS ODS data can support a stricter filter.
@@ -120,7 +123,8 @@ Tested end-to-end via CLI and the web UI:
 1. **Self-host OSRM** (Docker + Great Britain OSM extract, ~2 GB). Point
    `OSRM_URL` in `checker.py` at it — removes the rate limit and the external
    dependency; batches run orders of magnitude faster.
-2. **Add Scotland/Wales/NI** school and GP registers for full UK coverage.
+2. **Add Northern Ireland** school and GP registers (Scotland and Wales done)
+   for full UK coverage.
 3. **Precompute** results for all ~1.8M UK postcodes overnight (feasible once
    OSRM is local) so every lookup becomes instant and offline.
 4. **Offline geocoding** via the ONS Postcode Directory to drop the

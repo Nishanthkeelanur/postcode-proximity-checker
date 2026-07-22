@@ -82,7 +82,7 @@ if st.button("Run check", type="primary", disabled=not postcodes):
             return "background-color: rgba(255, 75, 75, 0.22)"
         return ""
 
-    show_cols = ["postcode", "status", "all_within"] + [
+    show_cols = ["postcode", "country", "status", "all_within"] + [
         checker.CATEGORY_LABELS[c] for c in checker.CATEGORIES
     ]
     st.dataframe(
@@ -115,7 +115,9 @@ if st.button("Run check", type="primary", disabled=not postcodes):
     st.download_button("Download results CSV", buf.getvalue(), "proximity_results.csv", "text/csv")
 
 st.caption(
-    "Data: GIAS (schools), NHS ODS (GPs), OpenStreetMap (hospitals, supermarkets), "
+    "Data: GIAS / Scottish Government / Welsh Government (schools), NHS ODS + "
+    "Public Health Scotland (GPs), OpenStreetMap (hospitals, supermarkets), "
     "postcodes.io (geocoding), OSRM demo server (drive times, free-flow traffic). "
-    "MVP - for production, self-host OSRM."
+    "Coverage: England, Wales & Scotland; Northern Ireland GP/school registers not "
+    "yet included. MVP - for production, self-host OSRM."
 )
