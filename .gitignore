@@ -1,3 +1,4 @@
 .env
 __pycache__/
 PROJECT_LOG.txt
+.claude/
